@@ -6,6 +6,8 @@ authors = ["Seth Lopez <seth@sethlopez.me>"]
 [dependencies]
 failure = "0.1"
 failure_derive = "0.1"
+futures = "0.1"
+reqwest = { version = "0.8", features = ["unstable"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

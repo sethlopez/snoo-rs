@@ -31,20 +31,18 @@ pub enum Resource {
 impl Resource {
     pub fn scope(&self) -> Option<Scope> {
         match *self {
-            Resource::Me => Scope::Identity.into(),
+            Resource::Me | Resource::MePrefs | Resource::MeTrophies => Scope::Identity.into(),
             Resource::MeKarma => Scope::MySubreddits.into(),
-            Resource::MePrefs => Scope::Identity.into(),
-            Resource::MeTrophies => Scope::Identity.into(),
-            Resource::PrefsBlocked => Scope::Read.into(),
-            Resource::PrefsFriends => Scope::Read.into(),
-            Resource::PrefsMessaging => Scope::Read.into(),
-            Resource::PrefsTrusted => Scope::Read.into(),
-            Resource::SubredditAbout(_) => Scope::Read.into(),
-            Resource::SubredditAboutBanned(_) => Scope::Read.into(),
-            Resource::SubredditAboutContributors(_) => Scope::Read.into(),
-            Resource::SubredditAboutModerators(_) => Scope::Read.into(),
-            Resource::SubredditAboutMuted(_) => Scope::Read.into(),
-            Resource::SubredditAboutWikiBanned(_) => Scope::Read.into(),
+            Resource::PrefsBlocked |
+            Resource::PrefsFriends |
+            Resource::PrefsMessaging |
+            Resource::PrefsTrusted |
+            Resource::SubredditAbout(_) |
+            Resource::SubredditAboutBanned(_) |
+            Resource::SubredditAboutContributors(_) |
+            Resource::SubredditAboutModerators(_) |
+            Resource::SubredditAboutMuted(_) |
+            Resource::SubredditAboutWikiBanned(_) |
             Resource::SubredditAboutWikiContributors(_) => Scope::Read.into(),
             _ => None,
         }
@@ -118,14 +116,14 @@ mod tests {
     }
 
     #[test]
-    fn me_resource_displays_as_the_correct_url() {
+    fn about_me_resource_displays_as_the_correct_url() {
         let actual = format!("{}", Resource::Me);
         let expected = "https://oauth.reddit.com/api/v1/me".to_owned();
         assert_eq!(actual, expected);
     }
 
     #[test]
-    fn me_resource_requires_a_scope() {
+    fn about_me_resource_requires_a_scope() {
         let actual = Resource::Me.scope();
         let expected = Some(Scope::Identity);
         assert_eq!(actual, expected);

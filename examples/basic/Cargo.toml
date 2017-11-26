@@ -1,0 +1,11 @@
+[package]
+name = "snoo-basic-example"
+version = "0.1.0"
+authors = ["Seth Lopez <seth@sethlopez.me>"]
+description = "Basic snoo-rs example"
+
+[dependencies]
+snoo = { path = "../../" }
+structopt = "0.1"
+structopt-derive = "0.1"
+tokio-core = "0.1"
