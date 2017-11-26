@@ -9,8 +9,9 @@ examples can be compiled and run with Cargo. For instance, you can compile and r
 following command:
 
 ```sh
+cd examples/basic
 # replace xxx below with the appropriate information
-cargo run --manifest-path examples/basic -- client_id=xxx client_secret=xxx username=xxx password=xxx
+cargo run -- --client_id=xxx --client_secret=xxx --username=xxx --password=xxx
 ```
 
 Some examples may contain usage instructions, so be sure to check the `README.md` in the appropriate example directory.
