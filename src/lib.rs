@@ -12,6 +12,7 @@ extern crate serde_json;
 extern crate serde_urlencoded;
 extern crate tokio_core;
 
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::Mutex;
 

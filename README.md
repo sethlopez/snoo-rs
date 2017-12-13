@@ -1,6 +1,6 @@
-# Snoo-rs
+# snoo-rs
 
-Snoo is a Rust library that wraps the Reddit API.
+Snoo is a futures-based API wrapper library for Reddit written in Rust.
 
 ## Examples
 
