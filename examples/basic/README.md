@@ -31,7 +31,7 @@ for your new app.
 The client ID can be found beneath your app name, and the client secret can be
 found next to the "secret" label.
 
-![Location of your app secrets](../../screenshots/application_secrets.png)
+![Location of your app secrets](../_assets/application_secrets.png)
 
 ## Usage
 
