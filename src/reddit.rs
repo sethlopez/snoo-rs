@@ -50,12 +50,6 @@ impl Resource {
             _ => None,
         }
     }
-
-    pub fn into_uri(self) -> Result<Uri, SnooError> {
-        self.to_string().as_str().parse().map_err(|error| {
-            SnooError::from(error)
-        })
-    }
 }
 
 impl fmt::Display for Resource {

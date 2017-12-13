@@ -48,13 +48,6 @@ impl AppSecrets {
         }
     }
 
-    pub fn to_basic_authorization_header(&self) -> Authorization<Basic> {
-        Authorization(Basic {
-            username: self.client_id.clone(),
-            password: self.client_secret.clone(),
-        })
-    }
-
     pub fn client_id(&self) -> &str {
         self.client_id.as_str()
     }
