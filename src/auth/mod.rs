@@ -6,7 +6,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, Unexpected, Visitor};
 
-pub use self::authentication::{ApplicationSecrets, AuthenticationFlow, BearerToken};
+pub use self::authentication::{AppSecrets, AuthFlow, BearerToken, BearerTokenFuture};
 pub use self::authorization::{AuthorizationDuration, AuthorizationResponseType,
                               AuthorizationUrlBuilder, AuthorizationUrlError};
 

@@ -1,6 +1,9 @@
 use std::fmt;
 
+use hyper::Uri;
+
 use auth::Scope;
+use error::SnooError;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -46,6 +49,12 @@ impl Resource {
             Resource::SubredditAboutWikiContributors(_) => Scope::Read.into(),
             _ => None,
         }
+    }
+
+    pub fn into_uri(self) -> Result<Uri, SnooError> {
+        self.to_string().as_str().parse().map_err(|error| {
+            SnooError::from(error)
+        })
     }
 }
 

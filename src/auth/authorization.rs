@@ -1,6 +1,6 @@
 use serde_urlencoded;
 
-use api::Resource;
+use reddit::Resource;
 use auth::{Scope, ScopeSet};
 
 /// A builder for user authorization URLs.
