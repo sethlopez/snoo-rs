@@ -1,9 +1,6 @@
 use std::fmt;
 
-use hyper::Uri;
-
 use auth::Scope;
-use error::SnooError;
 
 #[allow(dead_code)]
 #[derive(Debug)]

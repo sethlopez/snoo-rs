@@ -18,11 +18,13 @@ use std::sync::Mutex;
 use futures::Future;
 use futures::future::Shared;
 
+use auth::{AppSecrets, AuthFlow, BearerToken, BearerTokenFuture};
 use http::HttpClient;
+pub use http::SnooFuture;
 
 mod reddit;
 pub mod auth;
-mod error;
+pub mod error;
 mod http;
 
 pub struct Snoo {
@@ -34,8 +36,8 @@ impl Snoo {
         SnooBuilder::default()
     }
 
-    pub fn authorization_url_builder() -> auth::AuthorizationUrlBuilder {
-        auth::AuthorizationUrlBuilder::default()
+    pub fn authorization_url_builder() -> auth::AuthUrlBuilder {
+        auth::AuthUrlBuilder::default()
     }
 
     pub fn bearer_token(&self, force: bool) -> Shared<auth::BearerTokenFuture> {
@@ -81,26 +83,11 @@ impl Snoo {
 struct SnooClient {
     app_secrets: auth::AppSecrets,
     auth_flow: auth::AuthFlow,
-    bearer_token_future: Arc<Mutex<Shared<auth::BearerTokenFuture>>>,
+    bearer_token_future: Mutex<Shared<auth::BearerTokenFuture>>,
     http_client: HttpClient,
 }
 
 impl SnooClient {
-    pub fn new(
-        app_secrets: auth::AppSecrets,
-        auth_flow: auth::AuthFlow,
-        http_client: HttpClient,
-    ) -> SnooClient {
-        let bearer_token_future =
-            auth::BearerTokenFuture::new(&http_client, &auth_flow, &app_secrets);
-        SnooClient {
-            app_secrets,
-            auth_flow,
-            bearer_token_future: Arc::new(Mutex::new(bearer_token_future.shared())),
-            http_client,
-        }
-    }
-
     pub fn authenticate(&self, force: bool) -> Shared<auth::BearerTokenFuture> {
         let mut bearer_token_mutex_guard =
             self.bearer_token_future.lock().unwrap_or_else(
@@ -115,53 +102,30 @@ impl SnooClient {
 
         bearer_token_mutex_guard.clone()
     }
-
-    pub fn get(&self, resource: reddit::Resource) -> hyper::Request {
-        unimplemented!()
-    }
-
-    pub fn post(&self, resource: reddit::Resource) -> hyper::Request {
-        unimplemented!()
-    }
-
-    pub fn execute_request(&self, request: hyper::Request) {
-        unimplemented!()
-    }
 }
 
+// TODO: Add options for refreshing the bearer token and rate-limiting requests
 #[derive(Debug, Default)]
 pub struct SnooBuilder {
-    client_id: Option<String>,
-    client_secret: Option<String>,
-    authentication_flow: Option<auth::AuthFlow>,
-    bearer_token: Option<auth::BearerToken>,
+    app_secrets: Option<AppSecrets>,
+    auth_flow: Option<AuthFlow>,
+    bearer_token: Option<BearerToken>,
     user_agent: Option<String>,
 }
 
 impl SnooBuilder {
-    pub fn authentication_flow(mut self, method: auth::AuthFlow) -> Self {
-        self.authentication_flow = Some(method);
+    pub fn app_secrets(mut self, app_secrets: AppSecrets) -> Self {
+        self.app_secrets = Some(app_secrets);
         self
     }
 
-    pub fn bearer_token(mut self, token: auth::BearerToken) -> Self {
+    pub fn auth_flow(mut self, auth_flow: AuthFlow) -> Self {
+        self.auth_flow = Some(auth_flow);
+        self
+    }
+
+    pub fn bearer_token(mut self, token: BearerToken) -> Self {
         self.bearer_token = Some(token);
-        self
-    }
-
-    pub fn client_id<T>(mut self, client_id: T) -> Self
-    where
-        T: Into<String>,
-    {
-        self.client_id = Some(client_id.into());
-        self
-    }
-
-    pub fn client_secret<T>(mut self, client_secret: T) -> Self
-    where
-        T: Into<String>,
-    {
-        self.client_secret = Some(client_secret.into());
         self
     }
 
@@ -175,21 +139,30 @@ impl SnooBuilder {
         self,
         handle: &tokio_core::reactor::Handle,
     ) -> Result<Snoo, error::SnooBuilderError> {
-        let authentication_flow = self.authentication_flow.ok_or_else(|| {
-            error::SnooBuilderError::MissingAuthenticationFlow
-        })?;
-        let client_id = self.client_id.ok_or_else(
-            || error::SnooBuilderError::MissingClientId,
+        let auth_flow = self.auth_flow.ok_or_else(
+            || error::SnooBuilderError::MissingAuthFlow,
         )?;
-        let client_secret = self.client_secret;
+        let app_secrets = self.app_secrets.ok_or_else(|| {
+            error::SnooBuilderError::MissingAppSecrets
+        })?;
         let user_agent = self.user_agent.ok_or_else(
             || error::SnooBuilderError::MissingUserAgent,
         )?;
         let http_client = HttpClient::new(user_agent, handle).map_err(|_| {
             error::SnooBuilderError::HyperError
         })?;
-        let application_secrets = auth::AppSecrets::new(client_id, client_secret);
-        let snoo_client = SnooClient::new(application_secrets, authentication_flow, http_client);
+        let bearer_token_future = self.bearer_token
+            .map(|bearer_token| bearer_token.into())
+            .unwrap_or_else(|| {
+                BearerTokenFuture::new(&http_client, &auth_flow, &app_secrets)
+            })
+            .shared();
+        let snoo_client = SnooClient {
+            app_secrets,
+            auth_flow,
+            bearer_token_future: Mutex::new(bearer_token_future),
+            http_client,
+        };
         let snoo = Snoo { inner: Arc::new(snoo_client) };
 
         Ok(snoo)

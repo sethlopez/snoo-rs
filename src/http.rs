@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::time::Instant;
+
 use hyper;
 use hyper_tls;
 use futures::prelude::*;
@@ -7,9 +10,10 @@ use serde_json;
 use serde_urlencoded;
 use tokio_core;
 
+use auth::AppSecrets;
+use error::{SnooError, SnooBuilderError};
+use SnooClient;
 use reddit::Resource;
-use auth::{AppSecrets, BearerToken};
-use error::{SnooError, SnooErrorKind, SnooBuilderError};
 
 pub type HyperClient = hyper::Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>;
 
@@ -24,7 +28,7 @@ impl HttpClient {
         handle: &tokio_core::reactor::Handle,
     ) -> Result<HttpClient, SnooBuilderError> {
         let https_connector = hyper_tls::HttpsConnector::new(1, handle).map_err(|_| {
-            SnooBuilderError::HyperError.into()
+            SnooBuilderError::HyperError
         })?;
         let hyper_client = hyper::Client::configure()
             .connector(https_connector)
@@ -45,8 +49,8 @@ impl HttpClient {
 }
 
 pub struct HttpRequestBuilder {
-    request: hyper::Request,
     error: Option<SnooError>,
+    request: hyper::Request,
 }
 
 impl HttpRequestBuilder {
@@ -83,7 +87,7 @@ impl HttpRequestBuilder {
             hyper::header::Authorization(
                 hyper::header::Basic {
                     username: app_secrets.client_id().to_owned(),
-                    password: app_secrets.client_secret().clone().map(|s| s.to_owned()),
+                    password: app_secrets.client_secret().map(|s| s.to_owned()),
                 },
             ),
         );
@@ -158,14 +162,14 @@ impl RawHttpFuture {
 }
 
 impl Future for RawHttpFuture {
-    type Item = (hyper::StatusCode, hyper::Headers, hyper::Chunk);
+    type Item = (Instant, hyper::StatusCode, hyper::Headers, hyper::Chunk);
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         // if there's a response future, poll it and set the status, header, and body fields
         if let Some(mut response_future) = self.response_future.take() {
             match response_future.poll() {
-                Err(error) => return Err(error.into()),
+                Err(error) => return Err(error),
                 Ok(Async::NotReady) => {
                     self.response_future = Some(response_future);
                     return Ok(Async::NotReady);
@@ -181,13 +185,14 @@ impl Future for RawHttpFuture {
         // if there's a body future, concatenate it into a chunk and return everything
         if let Some(mut body_future) = self.body_future.take() {
             match body_future.poll() {
-                Err(error) => return Err(error.into()),
+                Err(error) => return Err(error),
                 Ok(Async::NotReady) => {
                     self.body_future = Some(body_future);
                     return Ok(Async::NotReady);
                 }
                 Ok(Async::Ready(body)) => {
                     return Ok(Async::Ready((
+                        Instant::now(),
                         self.status.take().unwrap(),
                         self.headers.take().unwrap(),
                         body,
@@ -198,4 +203,11 @@ impl Future for RawHttpFuture {
             panic!("future has already completed")
         }
     }
+}
+
+#[must_use = "futures do nothing unless polled"]
+pub struct SnooFuture<T> {
+    client: Arc<SnooClient>,
+    error: Option<SnooError>,
+    future: Option<Box<Future<Item = T, Error = SnooError>>>,
 }

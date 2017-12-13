@@ -94,10 +94,10 @@ pub enum SnooErrorKind {
 
 #[derive(Debug, Eq, Fail, PartialEq)]
 pub enum SnooBuilderError {
+    #[fail(display = "missing application secrets")]
+    MissingAppSecrets,
     #[fail(display = "missing authentication flow")]
-    MissingAuthenticationFlow,
-    #[fail(display = "missing client_id")]
-    MissingClientId,
+    MissingAuthFlow,
     #[fail(display = "missing user agent")]
     MissingUserAgent,
     #[fail(display = "hyper error")]

@@ -7,8 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, Unexpected, Visitor};
 
 pub use self::authentication::{AppSecrets, AuthFlow, BearerToken, BearerTokenFuture};
-pub use self::authorization::{AuthorizationDuration, AuthorizationResponseType,
-                              AuthorizationUrlBuilder, AuthorizationUrlError};
+pub use self::authorization::{AuthDuration, AuthResponseType, AuthUrlBuilder, AuthUrlError};
 
 mod authentication;
 mod authorization;
