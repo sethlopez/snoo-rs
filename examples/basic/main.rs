@@ -15,7 +15,6 @@ fn main() {
     // create the core with which we will run our futures
     let mut core = tokio_core::reactor::Core::new().unwrap();
     let snoo = Snoo::builder()
-        // a
         .user_agent(
             "me.sethlopez.snoo.example.basic",
             env!("CARGO_PKG_VERSION"),

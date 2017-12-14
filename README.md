@@ -1,6 +1,9 @@
 # snoo-rs
 
-Snoo is an unofficial futures-based library for Reddit, written in Rust. 
+snoo-rs is an unofficial wrapper for the Reddit API, written in Rust.
+
+- Provides asynchronous interaction with the Reddit API via futures.
+- Automatically refreshes authentication tokens.
 
 ## Examples
 
