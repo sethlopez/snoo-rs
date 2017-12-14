@@ -2,6 +2,21 @@
 
 This example demonstrates how to use `snoo-rs` to get some basic identity information about the authenticated user.
 
+## Usage
+
+To run this example, you will need the following (see [Setup](#setup)):
+
+1. Your client ID
+1. Your client secret
+1. Your username
+1. Your password
+
+Run the following command, replacing `xxx` with the appropriate information:
+
+```sh
+cargo run --example basic -- --client_id=xxx --client_secret=xxx --username=xxx --password=xxx
+```
+
 ## Setup
 
 Before running this example, you will first need to have a **script** app
@@ -32,18 +47,3 @@ The client ID can be found beneath your app name, and the client secret can be
 found next to the "secret" label.
 
 ![Location of your app secrets](../_assets/application_secrets.png)
-
-## Usage
-
-To run this example, you will need the following:
-
-1. A client ID (see above)
-1. A client secret (see above)
-1. The username for the same user who registered the app
-1. The password for the same user who registered the app
-
-Run the following command, replacing `xxx` with the appropriate information:
-
-```sh
-cargo run --example basic -- --client_id=xxx --client_secret=xxx --username=xxx --password=xxx
-```
