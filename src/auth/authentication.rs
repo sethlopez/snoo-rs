@@ -1,12 +1,140 @@
+use std::sync::Mutex;
 use std::time::Instant;
 
-use futures::{Async, Future, Poll};
+use futures::prelude::*;
+use futures::future::Shared;
 use serde_json;
 
 use reddit::Resource;
 use auth::{Scope, ScopeSet};
-use error::{SnooError, SnooErrorKind};
+use error::{SnooBuilderError, SnooError, SnooErrorKind};
 use http::{HttpClient, HttpRequestBuilder, RawHttpFuture};
+
+#[derive(Debug)]
+pub struct Authenticator {
+    app_secrets: AppSecrets,
+    auth_flow: Mutex<Option<AuthFlow>>,
+    bearer_token: Mutex<Shared<BearerTokenFuture>>,
+}
+
+impl Authenticator {
+    pub fn new(
+        app_secrets: AppSecrets,
+        auth_flow: Option<AuthFlow>,
+        bearer_token: Option<BearerToken>,
+        http_client: &HttpClient,
+    ) -> Result<Authenticator, SnooBuilderError> {
+        if let Some(bearer_token) = bearer_token {
+            let auth_flow = if let Some(auth_flow) = auth_flow {
+                if auth_flow.is_password() {
+                    Some(auth_flow)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            let bearer_token: BearerTokenFuture = bearer_token.into();
+            Ok(Authenticator {
+                app_secrets,
+                auth_flow: Mutex::new(auth_flow),
+                bearer_token: Mutex::new(bearer_token.shared()),
+            })
+        } else if let Some(auth_flow) = auth_flow {
+            let bearer_token = BearerTokenFuture::new(http_client, &auth_flow, &app_secrets);
+            let auth_flow = if auth_flow.is_password() {
+                Some(auth_flow)
+            } else {
+                None
+            };
+            Ok(Authenticator {
+                app_secrets,
+                auth_flow: Mutex::new(auth_flow),
+                bearer_token: Mutex::new(bearer_token.shared()),
+            })
+        } else {
+            Err(SnooBuilderError::MissingAuthFlow)
+        }
+    }
+
+    pub fn bearer_token(&self, http_client: &HttpClient, renew: bool) -> Shared<BearerTokenFuture> {
+        let mut auth_flow_guard = self.auth_flow
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let mut bearer_token_guard = self.bearer_token
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let mut renewed = false;
+
+        match (bearer_token_guard.peek(), auth_flow_guard.as_ref()) {
+            // bearer token is expired and renewable, renew the future
+            (Some(Ok(ref bearer_token)), _)
+                if bearer_token.is_expired() && bearer_token.is_renewable() =>
+            {
+                let refresh_token = bearer_token.refresh_token().map(|r| r.to_owned()).unwrap();
+                let auth_flow = AuthFlow::RefreshToken(refresh_token);
+                *bearer_token_guard =
+                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared()
+            }
+            // bearer token is expired & not renewable, but we have an auth flow, renew the future
+            (Some(Ok(ref bearer_token)), Some(_))
+                if bearer_token.is_expired() && !bearer_token.is_renewable() =>
+            {
+                let auth_flow = auth_flow_guard.take().unwrap();
+                *bearer_token_guard =
+                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared();
+
+                if auth_flow.is_password() {
+                    *auth_flow_guard = Some(auth_flow);
+                }
+            }
+            // bearer token is not expired, auth flow is present and renew is true, renew the future
+            (_, Some(_)) if renew => {
+                let auth_flow = auth_flow_guard.take().unwrap();
+                *bearer_token_guard =
+                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared();
+
+                if auth_flow.is_password() {
+                    *auth_flow_guard = Some(auth_flow);
+                }
+            }
+            // do nothing in any other circumstance
+            _ => {}
+        };
+
+        // if we have an expired and renewable bearer token, renew it
+        //        match bearer_token_guard.peek() {
+        //            Some(Ok(ref bearer_token))
+        //                if bearer_token.is_expired() && bearer_token.is_renewable() =>
+        //            {
+        //                let refresh_token = bearer_token.refresh_token().map(|r| r.to_owned()).unwrap();
+        //                let auth_flow = AuthFlow::RefreshToken(refresh_token);
+        //                *bearer_token_guard =
+        //                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared();
+        //                renewed = true;
+        //            }
+        //            _ => {}
+        //        };
+
+        // if the bearer token hasn't been renewed already, renew is true, and we have an auth flow,
+        // renew the token
+        //        match *auth_flow_guard {
+        //            Some(_) if !renewed && renew => {
+        //                let auth_flow = auth_flow_guard.take().unwrap();
+        //                *bearer_token_guard =
+        //                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared();
+        //
+        //                // a password auth flow should be placed back so it can be reused
+        //                if auth_flow.is_password() {
+        //                    *auth_flow_guard = Some(auth_flow);
+        //                }
+        //            }
+        //            _ => {}
+        //        };
+
+        bearer_token_guard.clone()
+    }
+}
 
 /// A container to hold Reddit-generated authentication secrets.
 #[derive(Clone, Debug)]
@@ -51,7 +179,6 @@ impl AppSecrets {
     }
 }
 
-
 /// The method used for authentication. Application-only authentication methods are not supported.
 ///
 /// More information about the authorization and authentication process can be found in Reddit's
@@ -87,11 +214,34 @@ pub enum AuthFlow {
     RefreshToken(String),
 }
 
+impl AuthFlow {
+    pub fn is_code(&self) -> bool {
+        match *self {
+            AuthFlow::Code { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_password(&self) -> bool {
+        match *self {
+            AuthFlow::Password { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_refresh_token(&self) -> bool {
+        match *self {
+            AuthFlow::RefreshToken { .. } => true,
+            _ => false,
+        }
+    }
+}
+
 /// The token that is generated by Reddit and used for authenticating API requests.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BearerToken {
     access_token: String,
-    #[serde(default = "Instant::now", skip_deserializing)]
+    #[serde(default = "Instant::now", skip_deserializing, skip_serializing)]
     created_at: Instant,
     expires_in: usize,
     refresh_token: Option<String>,
@@ -139,7 +289,7 @@ impl BearerToken {
         self.created_at.elapsed().as_secs() >= (self.expires_in as u64)
     }
 
-    pub fn is_refreshable(&self) -> bool {
+    pub fn is_renewable(&self) -> bool {
         self.refresh_token.is_some()
     }
 
@@ -150,6 +300,7 @@ impl BearerToken {
 
 // TODO: Document BearerTokenFuture
 #[must_use = "futures do nothing unless polled"]
+#[derive(Debug)]
 pub enum BearerTokenFuture {
     Fixed(Option<BearerToken>),
     Future {
@@ -217,9 +368,8 @@ impl Future for BearerTokenFuture {
                             let (_, status, _, body) = response;
 
                             if !status.is_success() {
-                                return Err(
-                                    SnooErrorKind::UnsuccessfulResponse(status.as_u16()).into(),
-                                );
+                                return Err(SnooErrorKind::UnsuccessfulResponse(status.as_u16())
+                                    .into());
                             }
 
                             return serde_json::from_slice::<BearerToken>(&body)

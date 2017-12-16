@@ -7,6 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, Unexpected, Visitor};
 
 pub use self::authentication::{AppSecrets, AuthFlow, BearerToken, BearerTokenFuture};
+pub(crate) use self::authentication::Authenticator;
 pub use self::authorization::{AuthDuration, AuthResponseType, AuthUrlBuilder, AuthUrlError};
 
 mod authentication;
@@ -409,16 +410,15 @@ impl Serialize for ScopeSet {
     {
         let mut scope_vec = self.0.iter().cloned().collect::<Vec<Scope>>();
         scope_vec.sort();
-        let scope_string = scope_vec.iter().fold(
-            String::new(),
-            |mut accumulator, scope| {
+        let scope_string = scope_vec
+            .iter()
+            .fold(String::new(), |mut accumulator, scope| {
                 if !accumulator.is_empty() {
                     accumulator.push(' ');
                 }
 
                 accumulator + scope.to_string().as_str()
-            },
-        );
+            });
         serializer.serialize_str(scope_string.as_str())
     }
 }

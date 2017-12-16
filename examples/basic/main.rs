@@ -6,7 +6,7 @@ extern crate structopt_derive;
 extern crate tokio_core;
 
 use futures::prelude::*;
-use snoo::auth::{AppSecrets, AuthFlow, Scope, ScopeSet};
+use snoo::auth::{AppSecrets, AuthFlow, BearerToken, Scope, ScopeSet};
 use snoo::Snoo;
 use structopt::StructOpt;
 
@@ -29,10 +29,13 @@ fn main() {
         .build(&core.handle())
         .unwrap();
 
+    println!("snoo = {:#?}", snoo);
+
     let future_1 = snoo.bearer_token(false);
     let future_2 = snoo.bearer_token(false);
 
-    eprintln!("result = {:#?}", core.run(future_1.join(future_2)));
+    println!("snoo = {:#?}", snoo);
+    println!("result = {:#?}", core.run(future_1.join(future_2)));
 }
 
 #[derive(Debug, StructOpt)]

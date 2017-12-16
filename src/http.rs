@@ -11,12 +11,13 @@ use serde_urlencoded;
 use tokio_core;
 
 use auth::AppSecrets;
-use error::{SnooError, SnooBuilderError};
-use SnooClient;
+use error::{SnooBuilderError, SnooError};
+use RedditClient;
 use reddit::Resource;
 
 pub type HyperClient = hyper::Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>;
 
+#[derive(Debug)]
 pub struct HttpClient {
     hyper_client: HyperClient,
     user_agent: String,
@@ -27,9 +28,8 @@ impl HttpClient {
         user_agent: String,
         handle: &tokio_core::reactor::Handle,
     ) -> Result<HttpClient, SnooBuilderError> {
-        let https_connector = hyper_tls::HttpsConnector::new(1, handle).map_err(|_| {
-            SnooBuilderError::HyperError
-        })?;
+        let https_connector =
+            hyper_tls::HttpsConnector::new(1, handle).map_err(|_| SnooBuilderError::HyperError)?;
         let hyper_client = hyper::Client::configure()
             .connector(https_connector)
             .build(handle);
@@ -41,9 +41,9 @@ impl HttpClient {
     }
 
     pub fn execute(&self, mut request: hyper::Request) -> hyper::client::FutureResponse {
-        request.headers_mut().set(hyper::header::UserAgent::new(
-            self.user_agent.clone(),
-        ));
+        request
+            .headers_mut()
+            .set(hyper::header::UserAgent::new(self.user_agent.clone()));
         self.hyper_client.request(request)
     }
 }
@@ -83,21 +83,21 @@ impl HttpRequestBuilder {
     }
 
     pub fn basic_auth(mut self, app_secrets: &AppSecrets) -> Self {
-        self.request.headers_mut().set(
-            hyper::header::Authorization(
-                hyper::header::Basic {
-                    username: app_secrets.client_id().to_owned(),
-                    password: app_secrets.client_secret().map(|s| s.to_owned()),
-                },
-            ),
-        );
+        self.request
+            .headers_mut()
+            .set(hyper::header::Authorization(hyper::header::Basic {
+                username: app_secrets.client_id().to_owned(),
+                password: app_secrets.client_secret().map(|s| s.to_owned()),
+            }));
         self
     }
 
     pub fn bearer_auth(mut self, access_token: &str) -> Self {
-        self.request.headers_mut().set(hyper::header::Authorization(
-            hyper::header::Bearer { token: access_token.to_owned() },
-        ));
+        self.request
+            .headers_mut()
+            .set(hyper::header::Authorization(hyper::header::Bearer {
+                token: access_token.to_owned(),
+            }));
         self
     }
 
@@ -107,9 +107,9 @@ impl HttpRequestBuilder {
     {
         match serde_json::to_string(&body) {
             Ok(serialized) => {
-                self.request.headers_mut().set(
-                    hyper::header::ContentType::json(),
-                );
+                self.request
+                    .headers_mut()
+                    .set(hyper::header::ContentType::json());
                 self.request.set_body(serialized);
             }
             Err(error) => self.error = Some(error.into()),
@@ -123,9 +123,9 @@ impl HttpRequestBuilder {
     {
         match serde_urlencoded::to_string(body) {
             Ok(serialized) => {
-                self.request.headers_mut().set(
-                    hyper::header::ContentType::form_url_encoded(),
-                );
+                self.request
+                    .headers_mut()
+                    .set(hyper::header::ContentType::form_url_encoded());
                 self.request.set_body(serialized);
             }
             Err(error) => self.error = Some(error.into()),
@@ -143,6 +143,7 @@ impl HttpRequestBuilder {
 }
 
 #[must_use = "futures do nothing unless polled"]
+#[derive(Debug)]
 pub struct RawHttpFuture {
     response_future: Option<hyper::client::FutureResponse>,
     status: Option<hyper::StatusCode>,
@@ -207,7 +208,7 @@ impl Future for RawHttpFuture {
 
 #[must_use = "futures do nothing unless polled"]
 pub struct SnooFuture<T> {
-    client: Arc<SnooClient>,
+    client: Arc<RedditClient>,
     error: Option<SnooError>,
     future: Option<Box<Future<Item = T, Error = SnooError>>>,
 }

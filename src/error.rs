@@ -34,13 +34,17 @@ impl Display for SnooError {
 
 impl From<SnooErrorKind> for SnooError {
     fn from(kind: SnooErrorKind) -> SnooError {
-        SnooError { inner: Context::new(kind) }
+        SnooError {
+            inner: Context::new(kind),
+        }
     }
 }
 
 impl From<Context<SnooErrorKind>> for SnooError {
     fn from(context_kind: Context<SnooErrorKind>) -> SnooError {
-        SnooError { inner: context_kind }
+        SnooError {
+            inner: context_kind,
+        }
     }
 }
 

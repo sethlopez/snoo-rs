@@ -163,9 +163,8 @@ impl AuthUrlBuilder {
             AuthResponseType::Code => Some(self.duration),
             _ => None,
         };
-        let redirect_uri = self.redirect_uri.ok_or_else(
-            || AuthUrlError::MissingRedirectUri,
-        )?;
+        let redirect_uri = self.redirect_uri
+            .ok_or_else(|| AuthUrlError::MissingRedirectUri)?;
         let state = self.state.ok_or_else(|| AuthUrlError::MissingState)?;
         let query_parameters = serde_urlencoded::to_string(QueryParameters {
             client_id,
@@ -282,12 +281,12 @@ mod tests {
             .build()
             .unwrap();
         let expected = "https://www.reddit.com/api/v1/authorize\
-                ?client_id=abc123\
-                &duration=temporary\
-                &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
-                &response_type=code\
-                &scope=identity\
-                &state=random_state";
+                        ?client_id=abc123\
+                        &duration=temporary\
+                        &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
+                        &response_type=code\
+                        &scope=identity\
+                        &state=random_state";
         assert_eq!(actual.as_str(), expected);
     }
 
@@ -301,12 +300,12 @@ mod tests {
             .build()
             .unwrap();
         let expected = "https://www.reddit.com/api/v1/authorize.compact\
-                ?client_id=abc123\
-                &duration=temporary\
-                &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
-                &response_type=code\
-                &scope=identity\
-                &state=random_state";
+                        ?client_id=abc123\
+                        &duration=temporary\
+                        &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
+                        &response_type=code\
+                        &scope=identity\
+                        &state=random_state";
         assert_eq!(actual.as_str(), expected);
     }
 
@@ -320,12 +319,12 @@ mod tests {
             .build()
             .unwrap();
         let expected = "https://www.reddit.com/api/v1/authorize\
-                ?client_id=abc123\
-                &duration=permanent\
-                &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
-                &response_type=code\
-                &scope=identity\
-                &state=random_state";
+                        ?client_id=abc123\
+                        &duration=permanent\
+                        &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
+                        &response_type=code\
+                        &scope=identity\
+                        &state=random_state";
         assert_eq!(actual.as_str(), expected);
     }
 
@@ -339,12 +338,12 @@ mod tests {
             .build()
             .unwrap();
         let expected = "https://www.reddit.com/api/v1/authorize\
-                ?client_id=abc123\
-                &duration=temporary\
-                &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
-                &response_type=code\
-                &scope=wikiedit+wikiread\
-                &state=random_state";
+                        ?client_id=abc123\
+                        &duration=temporary\
+                        &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
+                        &response_type=code\
+                        &scope=wikiedit+wikiread\
+                        &state=random_state";
         assert_eq!(actual.as_str(), expected);
     }
 
@@ -358,11 +357,11 @@ mod tests {
             .build()
             .unwrap();
         let expected = "https://www.reddit.com/api/v1/authorize\
-                ?client_id=abc123\
-                &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
-                &response_type=token\
-                &scope=identity\
-                &state=random_state";
+                        ?client_id=abc123\
+                        &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
+                        &response_type=token\
+                        &scope=identity\
+                        &state=random_state";
         assert_eq!(actual.as_str(), expected);
     }
 
@@ -377,11 +376,11 @@ mod tests {
             .build()
             .unwrap();
         let expected = "https://www.reddit.com/api/v1/authorize\
-                ?client_id=abc123\
-                &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
-                &response_type=token\
-                &scope=identity\
-                &state=random_state";
+                        ?client_id=abc123\
+                        &redirect_uri=https%3A%2F%2Fexample.com%2Fauthorized\
+                        &response_type=token\
+                        &scope=identity\
+                        &state=random_state";
         assert_eq!(actual.as_str(), expected);
     }
 

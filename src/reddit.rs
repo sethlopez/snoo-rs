@@ -33,17 +33,17 @@ impl Resource {
         match *self {
             Resource::Me | Resource::MePrefs | Resource::MeTrophies => Scope::Identity.into(),
             Resource::MeKarma => Scope::MySubreddits.into(),
-            Resource::PrefsBlocked |
-            Resource::PrefsFriends |
-            Resource::PrefsMessaging |
-            Resource::PrefsTrusted |
-            Resource::SubredditAbout(_) |
-            Resource::SubredditAboutBanned(_) |
-            Resource::SubredditAboutContributors(_) |
-            Resource::SubredditAboutModerators(_) |
-            Resource::SubredditAboutMuted(_) |
-            Resource::SubredditAboutWikiBanned(_) |
-            Resource::SubredditAboutWikiContributors(_) => Scope::Read.into(),
+            Resource::PrefsBlocked
+            | Resource::PrefsFriends
+            | Resource::PrefsMessaging
+            | Resource::PrefsTrusted
+            | Resource::SubredditAbout(_)
+            | Resource::SubredditAboutBanned(_)
+            | Resource::SubredditAboutContributors(_)
+            | Resource::SubredditAboutModerators(_)
+            | Resource::SubredditAboutMuted(_)
+            | Resource::SubredditAboutWikiBanned(_)
+            | Resource::SubredditAboutWikiContributors(_) => Scope::Read.into(),
             _ => None,
         }
     }
@@ -52,9 +52,9 @@ impl Resource {
 impl fmt::Display for Resource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let base_url = match *self {
-            Resource::AccessToken |
-            Resource::Authorize |
-            Resource::AuthorizeCompact => "https://www.reddit.com",
+            Resource::AccessToken | Resource::Authorize | Resource::AuthorizeCompact => {
+                "https://www.reddit.com"
+            }
             _ => "https://oauth.reddit.com",
         };
         match *self {
