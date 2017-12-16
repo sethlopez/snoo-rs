@@ -64,7 +64,6 @@ impl Authenticator {
         let mut bearer_token_guard = self.bearer_token
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        let mut renewed = false;
 
         match (bearer_token_guard.peek(), auth_flow_guard.as_ref()) {
             // bearer token is expired and renewable, renew the future
@@ -101,36 +100,6 @@ impl Authenticator {
             // do nothing in any other circumstance
             _ => {}
         };
-
-        // if we have an expired and renewable bearer token, renew it
-        //        match bearer_token_guard.peek() {
-        //            Some(Ok(ref bearer_token))
-        //                if bearer_token.is_expired() && bearer_token.is_renewable() =>
-        //            {
-        //                let refresh_token = bearer_token.refresh_token().map(|r| r.to_owned()).unwrap();
-        //                let auth_flow = AuthFlow::RefreshToken(refresh_token);
-        //                *bearer_token_guard =
-        //                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared();
-        //                renewed = true;
-        //            }
-        //            _ => {}
-        //        };
-
-        // if the bearer token hasn't been renewed already, renew is true, and we have an auth flow,
-        // renew the token
-        //        match *auth_flow_guard {
-        //            Some(_) if !renewed && renew => {
-        //                let auth_flow = auth_flow_guard.take().unwrap();
-        //                *bearer_token_guard =
-        //                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared();
-        //
-        //                // a password auth flow should be placed back so it can be reused
-        //                if auth_flow.is_password() {
-        //                    *auth_flow_guard = Some(auth_flow);
-        //                }
-        //            }
-        //            _ => {}
-        //        };
 
         bearer_token_guard.clone()
     }
