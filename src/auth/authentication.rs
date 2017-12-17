@@ -65,19 +65,21 @@ impl Authenticator {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
 
+        // renew the future if...
         match (bearer_token_guard.peek(), auth_flow_guard.as_ref()) {
-            // bearer token is expired and renewable, renew the future
+            // bearer token is present, renewable and expired, or renew is true
             (Some(Ok(ref bearer_token)), _)
-                if bearer_token.is_expired() && bearer_token.is_renewable() =>
+                if bearer_token.is_renewable() && (bearer_token.is_expired() || renew) =>
             {
                 let refresh_token = bearer_token.refresh_token().map(|r| r.to_owned()).unwrap();
                 let auth_flow = AuthFlow::RefreshToken(refresh_token);
                 *bearer_token_guard =
                     BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared()
             }
-            // bearer token is expired & not renewable, but we have an auth flow, renew the future
+            // bearer token is present, renewable and not expired, or renew is true, and we have an
+            // auth flow
             (Some(Ok(ref bearer_token)), Some(_))
-                if bearer_token.is_expired() && !bearer_token.is_renewable() =>
+                if !bearer_token.is_renewable() && (bearer_token.is_expired() || renew) =>
             {
                 let auth_flow = auth_flow_guard.take().unwrap();
                 *bearer_token_guard =
@@ -87,7 +89,7 @@ impl Authenticator {
                     *auth_flow_guard = Some(auth_flow);
                 }
             }
-            // bearer token is not expired, auth flow is present and renew is true, renew the future
+            // auth flow is present and renew is true
             (_, Some(_)) if renew => {
                 let auth_flow = auth_flow_guard.take().unwrap();
                 *bearer_token_guard =
