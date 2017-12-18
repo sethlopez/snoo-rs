@@ -1,6 +1,6 @@
 use std::fmt;
 
-use auth::Scope;
+use reddit::auth::Scope;
 
 #[allow(dead_code)]
 #[derive(Debug)]

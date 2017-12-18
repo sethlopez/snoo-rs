@@ -6,9 +6,11 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, Unexpected, Visitor};
 
-pub use self::authentication::{AppSecrets, AuthFlow, BearerToken, BearerTokenFuture};
+pub use self::authentication::{AppSecrets, AuthFlow, BearerToken, BearerTokenFuture,
+                               SharedBearerTokenFuture};
 pub(crate) use self::authentication::Authenticator;
-pub use self::authorization::{AuthDuration, AuthResponseType, AuthUrlBuilder, AuthUrlError};
+pub use self::authorization::{AuthorizationDuration, AuthorizationUrlBuilder,
+                              AuthorizationUrlBuilderError, ResponseType};
 
 mod authentication;
 mod authorization;
@@ -168,8 +170,8 @@ impl FromStr for Scope {
 /// # Examples
 ///
 /// ```
-/// use snoo::auth::{Scope, ScopeSet};
-///
+/// # use snoo::auth::{Scope, ScopeSet};
+/// #
 /// let mut scope_set = ScopeSet::new();
 ///
 /// // add some Scopes
@@ -194,7 +196,7 @@ impl FromStr for Scope {
 /// A `ScopeSet` with a fixed list of `Scope`s can be initialized from a Vec.
 ///
 /// ```
-/// use snoo::auth::{Scope, ScopeSet};
+/// # use snoo::auth::{Scope, ScopeSet};
 /// let scope_set: ScopeSet = vec![Scope::Identity, Scope::Account, Scope::History]
 ///     .into_iter()
 ///     .collect();
@@ -203,7 +205,7 @@ impl FromStr for Scope {
 /// A `ScopeSet` with a fixed list of `Scope`s can also be initialized from an array.
 ///
 /// ```
-/// use snoo::auth::{Scope, ScopeSet};
+/// # use snoo::auth::{Scope, ScopeSet};
 /// let scope_set: ScopeSet = [Scope::Identity, Scope::Account, Scope::History]
 ///     .iter()
 ///     .cloned()
@@ -221,7 +223,7 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::ScopeSet;
+    /// # use snoo::auth::ScopeSet;
     /// let mut scope_set = ScopeSet::new();
     /// ```
     pub fn new() -> ScopeSet {
@@ -233,8 +235,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// assert!(scope_set.is_empty());
     ///
@@ -250,8 +252,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// assert_eq!(scope_set.len(), 0);
     /// scope_set.insert(Scope::Identity);
@@ -275,8 +277,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     ///
     /// assert_eq!(scope_set.insert(Scope::Identity), true);
@@ -299,8 +301,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// scope_set.insert(Scope::Identity);
     ///
@@ -317,8 +319,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// scope_set.insert(Scope::Identity);
     ///
@@ -334,8 +336,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// assert!(!scope_set.contains(Scope::Identity));
     ///
@@ -351,8 +353,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// scope_set.insert(Scope::Identity);
     /// scope_set.insert(Scope::Account);
@@ -371,8 +373,8 @@ impl ScopeSet {
     /// # Examples
     ///
     /// ```
-    /// use snoo::auth::{Scope, ScopeSet};
-    ///
+    /// # use snoo::auth::{Scope, ScopeSet};
+    /// #
     /// let mut scope_set = ScopeSet::new();
     /// scope_set.insert(Scope::Identity);
     /// scope_set.insert(Scope::Account);

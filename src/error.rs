@@ -32,6 +32,7 @@ impl Display for SnooError {
     }
 }
 
+#[doc(hidden)]
 impl From<SnooErrorKind> for SnooError {
     fn from(kind: SnooErrorKind) -> SnooError {
         SnooError {
@@ -40,6 +41,7 @@ impl From<SnooErrorKind> for SnooError {
     }
 }
 
+#[doc(hidden)]
 impl From<Context<SnooErrorKind>> for SnooError {
     fn from(context_kind: Context<SnooErrorKind>) -> SnooError {
         SnooError {
@@ -48,30 +50,35 @@ impl From<Context<SnooErrorKind>> for SnooError {
     }
 }
 
+#[doc(hidden)]
 impl From<hyper::error::UriError> for SnooError {
     fn from(_: hyper::error::UriError) -> SnooError {
         SnooErrorKind::InvalidRequest.into()
     }
 }
 
+#[doc(hidden)]
 impl From<hyper::Error> for SnooError {
     fn from(_: hyper::Error) -> SnooError {
         SnooErrorKind::NetworkError.into()
     }
 }
 
+#[doc(hidden)]
 impl From<serde_json::Error> for SnooError {
     fn from(_: serde_json::Error) -> Self {
         SnooErrorKind::InvalidRequest.into()
     }
 }
 
+#[doc(hidden)]
 impl From<serde_urlencoded::ser::Error> for SnooError {
     fn from(_: serde_urlencoded::ser::Error) -> Self {
         SnooErrorKind::InvalidRequest.into()
     }
 }
 
+#[doc(hidden)]
 impl From<serde_urlencoded::de::Error> for SnooError {
     fn from(_: serde_urlencoded::de::Error) -> Self {
         SnooErrorKind::InvalidResponse.into()

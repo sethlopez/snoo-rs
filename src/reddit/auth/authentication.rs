@@ -5,10 +5,12 @@ use futures::prelude::*;
 use futures::future::Shared;
 use serde_json;
 
-use reddit::Resource;
-use auth::{Scope, ScopeSet};
+use reddit::api::Resource;
+use reddit::auth::{Scope, ScopeSet};
 use error::{SnooBuilderError, SnooError, SnooErrorKind};
-use http::{HttpClient, HttpRequestBuilder, RawHttpFuture};
+use net::HttpClient;
+use net::request::HttpRequestBuilder;
+use net::response::HttpResponseFuture;
 
 #[derive(Debug)]
 pub struct Authenticator {
@@ -115,15 +117,15 @@ impl AppSecrets {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::AppSecrets;
+    /// ```ignore
+    /// # use snoo::reddit::auth::AppSecrets;
     /// let secrets = AppSecrets::new("abc123", "xyz890");
     /// ```
     ///
     /// If a client secret is not available for your application, `None` can be passed instead.
     ///
-    /// ```
-    /// use snoo::auth::AppSecrets;
+    /// ```ignore
+    /// # use snoo::reddit::auth::AppSecrets;
     /// let secrets = AppSecrets::new("abc123", None);
     /// ```
     pub fn new<S, O>(client_id: S, client_secret: O) -> AppSecrets
@@ -141,8 +143,8 @@ impl AppSecrets {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::AppSecrets;
+    /// ```ignore
+    /// # use snoo::reddit::auth::AppSecrets;
     /// let secrets = AppSecrets::new("abc123", None);
     /// assert_eq!(secrets.client_id(), "abc123")
     /// ```
@@ -154,8 +156,8 @@ impl AppSecrets {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::AppSecrets;
+    /// ```ignore
+    /// # use snoo::reddit::auth::AppSecrets;
     /// let secrets = AppSecrets::new("abc123", "def456");
     /// assert_eq!(secrets.client_secret(), Some("def456"));
     /// ```
@@ -258,8 +260,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// ```ignore
+    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -280,8 +282,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// ```ignore
+    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -302,8 +304,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// ```ignore
+    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -324,8 +326,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// ```ignore
+    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -347,8 +349,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// ```ignore
+    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -369,8 +371,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// ```ignore
+    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -392,14 +394,18 @@ impl BearerToken {
     }
 }
 
+pub type SharedBearerTokenFuture = Shared<BearerTokenFuture>;
+
 // TODO: Document BearerTokenFuture
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub enum BearerTokenFuture {
+    #[doc(hidden)]
     Fixed(Option<BearerToken>),
+    #[doc(hidden)]
     Future {
         error: Option<SnooError>,
-        future: Option<RawHttpFuture>,
+        future: Option<HttpResponseFuture>,
     },
 }
 
@@ -416,7 +422,7 @@ impl BearerTokenFuture {
         match request {
             Ok(request) => BearerTokenFuture::Future {
                 error: None,
-                future: Some(RawHttpFuture::new(http_client.execute(request))),
+                future: Some(HttpResponseFuture::new(http_client.execute(request))),
             },
             Err(error) => BearerTokenFuture::Future {
                 error: Some(error),

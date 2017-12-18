@@ -1,7 +1,7 @@
 use serde_urlencoded;
 
-use reddit::Resource;
-use auth::{Scope, ScopeSet};
+use reddit::api::Resource;
+use reddit::auth::{Scope, ScopeSet};
 
 /// A builder for user authorization URLs.
 ///
@@ -18,8 +18,7 @@ use auth::{Scope, ScopeSet};
 /// # Examples
 ///
 /// ```
-/// use snoo::auth::{AuthResponseType, AuthUrlBuilder};
-///
+/// # use snoo::auth::{ResponseType, AuthorizationUrlBuilder, AuthorizationUrlBuilderError};
 /// let expected_url = "https://www.reddit.com/api/v1/authorize\
 ///     ?client_id=xxxxxxxxxxxxxx\
 ///     &duration=temporary\
@@ -27,7 +26,7 @@ use auth::{Scope, ScopeSet};
 ///     &response_type=code\
 ///     &scope=identity\
 ///     &state=random_state";
-/// let actual_url = AuthUrlBuilder::default()
+/// let actual_url = AuthorizationUrlBuilder::default()
 ///     .client_id("xxxxxxxxxxxxxx")
 ///     .redirect_uri("https://example.com/authorized")
 ///     .state("random_state")
@@ -37,17 +36,17 @@ use auth::{Scope, ScopeSet};
 /// assert_eq!(expected_url, actual_url.as_str());
 /// ```
 #[derive(Clone, Debug)]
-pub struct AuthUrlBuilder {
+pub struct AuthorizationUrlBuilder {
     client_id: Option<String>,
     compact: bool,
-    duration: AuthDuration,
+    duration: AuthorizationDuration,
     redirect_uri: Option<String>,
-    response_type: AuthResponseType,
+    response_type: ResponseType,
     scope: ScopeSet,
     state: Option<String>,
 }
 
-impl AuthUrlBuilder {
+impl AuthorizationUrlBuilder {
     /// **Required.** Sets the client ID query parameter.
     ///
     /// The client ID can be found in the [user preferences] of
@@ -72,17 +71,17 @@ impl AuthUrlBuilder {
         self
     }
 
-    /// Sets the authorization duration. This value is ignored for the token [response type].
+    /// Sets the authorization duration. This value is ignored for [`ResponseType::Token`].
     /// [Read more]
     ///
     /// # Default Value
     ///
-    /// By default, `duration` is set to [`AuthDuration::Temporary`].
+    /// By default, `duration` is set to [`AuthorizationDuration::Temporary`].
     ///
-    /// [response type]: enum.AuthResponseType.html#variant.Token
-    /// [Read more]: enum.AuthDuration.html
-    /// [`AuthDuration::Temporary`]: enum.AuthDuration.html#variant.Temporary
-    pub fn duration(mut self, duration: AuthDuration) -> Self {
+    /// [`ResponseType::Token`]: enum.ResponseType.html#variant.Token
+    /// [Read more]: enum.AuthorizationDuration.html
+    /// [`AuthorizationDuration::Temporary`]: enum.AuthorizationDuration.html#variant.Temporary
+    pub fn duration(mut self, duration: AuthorizationDuration) -> Self {
         self.duration = duration;
         self
     }
@@ -103,11 +102,11 @@ impl AuthUrlBuilder {
     ///
     /// # Default Value
     ///
-    /// By default, `response_type` is set to [`AuthResponseType::Code`].
+    /// By default, `response_type` is set to [`ResponseType::Code`].
     ///
-    /// [Read more]: enum.AuthResponseType.html
-    /// [`AuthResponseType::Code`]: enum.AuthResponseType.html#variant.Code
-    pub fn response_type(mut self, response_type: AuthResponseType) -> Self {
+    /// [Read more]: enum.ResponseType.html
+    /// [`ResponseType::Code`]: enum.ResponseType.html#variant.Code
+    pub fn response_type(mut self, response_type: ResponseType) -> Self {
         self.response_type = response_type;
         self
     }
@@ -152,20 +151,22 @@ impl AuthUrlBuilder {
     }
 
     /// Builds an authorization URL from the values provided.
-    pub fn build(self) -> Result<String, AuthUrlError> {
+    pub fn build(self) -> Result<String, AuthorizationUrlBuilderError> {
         let endpoint = if self.compact {
             Resource::AuthorizeCompact
         } else {
             Resource::Authorize
         };
-        let client_id = self.client_id.ok_or_else(|| AuthUrlError::MissingClientId)?;
+        let client_id = self.client_id
+            .ok_or_else(|| AuthorizationUrlBuilderError::MissingClientId)?;
         let duration = match self.response_type {
-            AuthResponseType::Code => Some(self.duration),
+            ResponseType::Code => Some(self.duration),
             _ => None,
         };
         let redirect_uri = self.redirect_uri
-            .ok_or_else(|| AuthUrlError::MissingRedirectUri)?;
-        let state = self.state.ok_or_else(|| AuthUrlError::MissingState)?;
+            .ok_or_else(|| AuthorizationUrlBuilderError::MissingRedirectUri)?;
+        let state = self.state
+            .ok_or_else(|| AuthorizationUrlBuilderError::MissingState)?;
         let query_parameters = serde_urlencoded::to_string(QueryParameters {
             client_id,
             duration,
@@ -180,14 +181,15 @@ impl AuthUrlBuilder {
     }
 }
 
-impl Default for AuthUrlBuilder {
-    fn default() -> AuthUrlBuilder {
-        AuthUrlBuilder {
+#[doc(hidden)]
+impl Default for AuthorizationUrlBuilder {
+    fn default() -> AuthorizationUrlBuilder {
+        AuthorizationUrlBuilder {
             client_id: None,
             compact: false,
-            duration: AuthDuration::Temporary,
+            duration: AuthorizationDuration::Temporary,
             redirect_uri: None,
-            response_type: AuthResponseType::Code,
+            response_type: ResponseType::Code,
             scope: ScopeSet::default(),
             state: None,
         }
@@ -199,9 +201,9 @@ impl Default for AuthUrlBuilder {
 #[serde(rename_all = "lowercase")]
 struct QueryParameters {
     client_id: String,
-    duration: Option<AuthDuration>,
+    duration: Option<AuthorizationDuration>,
     redirect_uri: String,
-    response_type: AuthResponseType,
+    response_type: ResponseType,
     scope: ScopeSet,
     state: String,
 }
@@ -216,13 +218,13 @@ struct QueryParameters {
 /// [application type]: https://github.com/reddit/reddit/wiki/oauth2-app-types
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum AuthResponseType {
+pub enum ResponseType {
     /// The `Code` response type tells Reddit to append a `code` query parameter containing a
     /// one-time use code that can then be exchanged for a bearer token during authentication.
     ///
     /// This response type can be used for all application types.
     Code,
-    /// The `token` response type tells Reddit to append an `access_token`, `token_type`,
+    /// The `Token` response type tells Reddit to append the `access_token`, `token_type`,
     /// `expires_in`, and `scope` query parameters. This allows the application to request
     /// authorization from a user and receive a bearer token in a single step.
     ///
@@ -230,12 +232,12 @@ pub enum AuthResponseType {
     Token,
 }
 
-/// A duration for which an authorization is valid.
+/// The duration for which a token is valid.
 ///
 /// By default, a `Temporary` duration is used when requesting authorization.
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum AuthDuration {
+pub enum AuthorizationDuration {
     /// The `Temporary` duration is useful when performing one-off actions for a user, such as
     /// analyzing their recent comments. Temporary bearer tokens do not include a refresh token. For
     /// authentication flows that require it, a user will need to authorize access again once a
@@ -250,20 +252,20 @@ pub enum AuthDuration {
 
 /// An error that may occur when building an authorization URL.
 #[derive(Debug, Eq, Fail, PartialEq)]
-pub enum AuthUrlError {
+pub enum AuthorizationUrlBuilderError {
     /// A client ID is required, but wasn't provided. [Read more]
     ///
-    /// [Read more]: struct.AuthUrlBuilder.html#method.client_id
+    /// [Read more]: struct.AuthorizationUrlBuilder.html#method.client_id
     #[fail(display = "missing client ID")]
     MissingClientId,
     /// A redirect URI is required, but wasn't provided. [Read more]
     ///
-    /// [Read more]: struct.AuthUrlBuilder.html#method.redirect_uri
+    /// [Read more]: struct.AuthorizationUrlBuilder.html#method.redirect_uri
     #[fail(display = "missing redirect URI")]
     MissingRedirectUri,
     /// A state string is required, but wasn't provided. [Read more]
     ///
-    /// [Read more]: struct.AuthUrlBuilder.html#method.state
+    /// [Read more]: struct.AuthorizationUrlBuilder.html#method.state
     #[fail(display = "missing state")]
     MissingState,
 }
@@ -274,7 +276,7 @@ mod tests {
 
     #[test]
     fn builds_authorization_code_url() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
             .redirect_uri("https://example.com/authorized")
             .state("random_state")
@@ -292,7 +294,7 @@ mod tests {
 
     #[test]
     fn builds_authorization_code_url_with_compact() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
             .compact(true)
             .redirect_uri("https://example.com/authorized")
@@ -311,9 +313,9 @@ mod tests {
 
     #[test]
     fn builds_authorization_code_url_with_custom_duration() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
-            .duration(AuthDuration::Permanent)
+            .duration(AuthorizationDuration::Permanent)
             .redirect_uri("https://example.com/authorized")
             .state("random_state")
             .build()
@@ -330,7 +332,7 @@ mod tests {
 
     #[test]
     fn builds_authorization_code_url_with_custom_scope() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
             .redirect_uri("https://example.com/authorized")
             .scope(vec![Scope::WikiEdit, Scope::WikiRead])
@@ -349,10 +351,10 @@ mod tests {
 
     #[test]
     fn builds_authorization_token_url() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
             .redirect_uri("https://example.com/authorized")
-            .response_type(AuthResponseType::Token)
+            .response_type(ResponseType::Token)
             .state("random_state")
             .build()
             .unwrap();
@@ -367,11 +369,11 @@ mod tests {
 
     #[test]
     fn builds_authorization_token_url_ignoring_duration() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
-            .duration(AuthDuration::Permanent)
+            .duration(AuthorizationDuration::Permanent)
             .redirect_uri("https://example.com/authorized")
-            .response_type(AuthResponseType::Token)
+            .response_type(ResponseType::Token)
             .state("random_state")
             .build()
             .unwrap();
@@ -386,31 +388,31 @@ mod tests {
 
     #[test]
     fn fails_building_authorization_code_url_without_client_id() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .redirect_uri("https://example.com/authorized")
             .state("random_state")
             .build();
-        let expected = Err(AuthUrlError::MissingClientId);
+        let expected = Err(AuthorizationUrlBuilderError::MissingClientId);
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn fails_building_authorization_code_url_without_redirect_uri() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
             .state("random_state")
             .build();
-        let expected = Err(AuthUrlError::MissingRedirectUri);
+        let expected = Err(AuthorizationUrlBuilderError::MissingRedirectUri);
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn fails_building_authorization_code_url_without_state() {
-        let actual = AuthUrlBuilder::default()
+        let actual = AuthorizationUrlBuilder::default()
             .client_id("abc123")
             .redirect_uri("https://example.com/authorized")
             .build();
-        let expected = Err(AuthUrlError::MissingState);
+        let expected = Err(AuthorizationUrlBuilderError::MissingState);
         assert_eq!(actual, expected);
     }
 }

@@ -6,7 +6,7 @@ extern crate structopt_derive;
 extern crate tokio_core;
 
 use futures::prelude::*;
-use snoo::auth::{AppSecrets, AuthFlow, BearerToken, Scope, ScopeSet};
+use snoo::auth::Scope;
 use snoo::Snoo;
 use structopt::StructOpt;
 
@@ -22,6 +22,7 @@ fn main() {
             vec![Scope::Identity],
         )
         .user_agent(
+            "macos",
             "me.sethlopez.snoo.example.basic",
             env!("CARGO_PKG_VERSION"),
             settings.username.as_str(),
