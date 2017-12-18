@@ -15,17 +15,17 @@ fn main() {
     // create the core with which we will run our futures
     let mut core = tokio_core::reactor::Core::new().unwrap();
     let snoo = Snoo::builder()
+        .app_secrets(settings.client_id.as_str(), settings.client_secret.as_str())
+        .password_auth(
+            settings.username.as_str(),
+            settings.password.as_str(),
+            vec![Scope::Identity],
+        )
         .user_agent(
             "me.sethlopez.snoo.example.basic",
             env!("CARGO_PKG_VERSION"),
-            &settings.username,
+            settings.username.as_str(),
         )
-        .app_secrets(AppSecrets::new(settings.client_id, settings.client_secret))
-        .auth_flow(AuthFlow::Password {
-            username: settings.username,
-            password: settings.password,
-            scope: [Scope::Identity].iter().cloned().collect::<ScopeSet>(),
-        })
         .build(&core.handle())
         .unwrap();
 

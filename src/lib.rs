@@ -1,7 +1,6 @@
 extern crate failure;
 #[macro_use]
 extern crate failure_derive;
-#[macro_use]
 extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
@@ -12,14 +11,11 @@ extern crate serde_json;
 extern crate serde_urlencoded;
 extern crate tokio_core;
 
-use std::borrow::Cow;
 use std::sync::Arc;
-use std::sync::Mutex;
 
-use futures::Future;
 use futures::future::Shared;
 
-use auth::{AppSecrets, AuthFlow, Authenticator, BearerToken, BearerTokenFuture};
+use auth::{AppSecrets, AuthFlow, Authenticator, BearerToken};
 use http::HttpClient;
 pub use http::SnooFuture;
 
@@ -104,18 +100,55 @@ pub struct SnooBuilder {
 }
 
 impl SnooBuilder {
-    pub fn app_secrets(mut self, app_secrets: AppSecrets) -> Self {
+    pub fn app_secrets<T, U>(mut self, client_id: T, client_secret: U) -> Self
+    where
+        T: Into<String>,
+        U: Into<Option<T>>,
+    {
+        let app_secrets = AppSecrets::new(client_id, client_secret);
         self.app_secrets = Some(app_secrets);
         self
     }
 
-    pub fn auth_flow(mut self, auth_flow: AuthFlow) -> Self {
+    pub fn bearer_token(mut self, bearer_token: BearerToken) -> Self {
+        self.bearer_token = Some(bearer_token);
+        self
+    }
+
+    pub fn code_auth<T, U>(mut self, code: T, redirect_uri: T, scope: U) -> Self
+    where
+        T: Into<String>,
+        U: IntoIterator<Item = auth::Scope>,
+    {
+        let auth_flow = AuthFlow::Code {
+            code: code.into(),
+            redirect_uri: redirect_uri.into(),
+            scope: scope.into_iter().collect(),
+        };
         self.auth_flow = Some(auth_flow);
         self
     }
 
-    pub fn bearer_token(mut self, token: BearerToken) -> Self {
-        self.bearer_token = Some(token);
+    pub fn password_auth<T, U>(mut self, username: T, password: T, scope: U) -> Self
+    where
+        T: Into<String>,
+        U: IntoIterator<Item = auth::Scope>,
+    {
+        let auth_flow = AuthFlow::Password {
+            password: password.into(),
+            username: username.into(),
+            scope: scope.into_iter().collect(),
+        };
+        self.auth_flow = Some(auth_flow);
+        self
+    }
+
+    pub fn refresh_token_auth<T>(mut self, refresh_token: T) -> Self
+    where
+        T: Into<String>,
+    {
+        let auth_flow = AuthFlow::RefreshToken(refresh_token.into());
+        self.auth_flow = Some(auth_flow);
         self
     }
 
