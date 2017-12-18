@@ -20,41 +20,36 @@ pub struct Authenticator {
 impl Authenticator {
     pub fn new(
         app_secrets: AppSecrets,
-        auth_flow: Option<AuthFlow>,
+        mut auth_flow: Option<AuthFlow>,
         bearer_token: Option<BearerToken>,
         http_client: &HttpClient,
     ) -> Result<Authenticator, SnooBuilderError> {
-        if let Some(bearer_token) = bearer_token {
-            let auth_flow = if let Some(auth_flow) = auth_flow {
-                if auth_flow.is_password() {
-                    Some(auth_flow)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            let bearer_token: BearerTokenFuture = bearer_token.into();
-            Ok(Authenticator {
-                app_secrets,
-                auth_flow: Mutex::new(auth_flow),
-                bearer_token: Mutex::new(bearer_token.shared()),
-            })
+        let (auth_flow, bearer_token) = if let Some(bearer_token) = bearer_token {
+            // because we have a bearer token, only keep password auth flows
+            if auth_flow.is_some() && !auth_flow.as_ref().unwrap().is_password() {
+                auth_flow.take();
+            }
+
+            (auth_flow, bearer_token.into())
         } else if let Some(auth_flow) = auth_flow {
             let bearer_token = BearerTokenFuture::new(http_client, &auth_flow, &app_secrets);
+            // now that we've used the auth flow, only keep it if it's a password auth flow
             let auth_flow = if auth_flow.is_password() {
                 Some(auth_flow)
             } else {
                 None
             };
-            Ok(Authenticator {
-                app_secrets,
-                auth_flow: Mutex::new(auth_flow),
-                bearer_token: Mutex::new(bearer_token.shared()),
-            })
+
+            (auth_flow, bearer_token)
         } else {
-            Err(SnooBuilderError::MissingAuthFlow)
-        }
+            return Err(SnooBuilderError::MissingAuthFlow);
+        };
+
+        Ok(Authenticator {
+            app_secrets,
+            auth_flow: Mutex::new(auth_flow),
+            bearer_token: Mutex::new(bearer_token.shared()),
+        })
     }
 
     pub fn bearer_token(&self, http_client: &HttpClient, renew: bool) -> Shared<BearerTokenFuture> {
@@ -67,19 +62,10 @@ impl Authenticator {
 
         // renew the future if...
         match (bearer_token_guard.peek(), auth_flow_guard.as_ref()) {
-            // bearer token is present, renewable and expired, or renew is true
-            (Some(Ok(ref bearer_token)), _)
-                if bearer_token.is_renewable() && (bearer_token.is_expired() || renew) =>
-            {
-                let refresh_token = bearer_token.refresh_token().map(|r| r.to_owned()).unwrap();
-                let auth_flow = AuthFlow::RefreshToken(refresh_token);
-                *bearer_token_guard =
-                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared()
-            }
-            // bearer token is present, renewable and not expired, or renew is true, and we have an
-            // auth flow
+            // bearer token and auth flow are present, bearer token is not renewable, and bearer
+            // token is expired or renew is true
             (Some(Ok(ref bearer_token)), Some(_))
-                if !bearer_token.is_renewable() && (bearer_token.is_expired() || renew) =>
+                if !bearer_token.is_refreshable() && (bearer_token.is_expired() || renew) =>
             {
                 let auth_flow = auth_flow_guard.take().unwrap();
                 *bearer_token_guard =
@@ -88,6 +74,16 @@ impl Authenticator {
                 if auth_flow.is_password() {
                     *auth_flow_guard = Some(auth_flow);
                 }
+            }
+            // bearer token is present, bearer token is renewable, and bearer token is expired or
+            // renew is true
+            (Some(Ok(ref bearer_token)), _)
+                if bearer_token.is_refreshable() && (bearer_token.is_expired() || renew) =>
+            {
+                let refresh_token = bearer_token.refresh_token().map(|r| r.to_owned()).unwrap();
+                let auth_flow = AuthFlow::RefreshToken(refresh_token);
+                *bearer_token_guard =
+                    BearerTokenFuture::new(http_client, &auth_flow, &self.app_secrets).shared()
             }
             // auth flow is present and renew is true
             (_, Some(_)) if renew => {
@@ -124,7 +120,7 @@ impl AppSecrets {
     /// let secrets = AppSecrets::new("abc123", "xyz890");
     /// ```
     ///
-    /// If a client_secret is not available for your application, `None` can be passed instead.
+    /// If a client secret is not available for your application, `None` can be passed instead.
     ///
     /// ```
     /// use snoo::auth::AppSecrets;
@@ -141,10 +137,28 @@ impl AppSecrets {
         }
     }
 
+    /// Gets a slice of the entire client ID.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::AppSecrets;
+    /// let secrets = AppSecrets::new("abc123", None);
+    /// assert_eq!(secrets.client_id(), "abc123")
+    /// ```
     pub fn client_id(&self) -> &str {
         self.client_id.as_str()
     }
 
+    /// Gets a slice of the entire client secret, if available.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::AppSecrets;
+    /// let secrets = AppSecrets::new("abc123", "def456");
+    /// assert_eq!(secrets.client_secret(), Some("def456"));
+    /// ```
     pub fn client_secret(&self) -> Option<&str> {
         self.client_secret.as_ref().map(|s| s.as_str())
     }
@@ -240,27 +254,136 @@ impl BearerToken {
         }
     }
 
+    /// Gets the access token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// let scope = [Scope::Identity]
+    ///     .iter()
+    ///     .cloned()
+    ///     .collect::<ScopeSet>();
+    /// let bearer_token = BearerToken::new(
+    ///     "abc123",
+    ///     3600,
+    ///     None,
+    ///     scope
+    /// );
+    /// assert_eq!(bearer_token.access_token(), "abc123");
+    /// ```
     pub fn access_token(&self) -> &str {
         self.access_token.as_str()
     }
 
+    /// Gets the number of seconds until the access token expires.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// let scope = [Scope::Identity]
+    ///     .iter()
+    ///     .cloned()
+    ///     .collect::<ScopeSet>();
+    /// let bearer_token = BearerToken::new(
+    ///     "abc123",
+    ///     3600,
+    ///     None,
+    ///     scope
+    /// );
+    /// assert_eq!(bearer_token.expires_in(), 3600);
+    /// ```
     pub fn expires_in(&self) -> usize {
         self.expires_in
     }
 
+    /// Gets the refresh token, if available.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// let scope = [Scope::Identity]
+    ///     .iter()
+    ///     .cloned()
+    ///     .collect::<ScopeSet>();
+    /// let bearer_token = BearerToken::new(
+    ///     "abc123",
+    ///     3600,
+    ///     Some("def456"),
+    ///     scope
+    /// );
+    /// assert_eq!(bearer_token.refresh_token(), Some("def456"));
+    /// ```
     pub fn refresh_token(&self) -> Option<&str> {
         self.refresh_token.as_ref().map(String::as_ref)
     }
 
+    /// Gets the scopes allowed by this bearer token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// let scope = [Scope::Identity]
+    ///     .iter()
+    ///     .cloned()
+    ///     .collect::<ScopeSet>();
+    /// let scope_clone = scope.clone();
+    /// let bearer_token = BearerToken::new(
+    ///     "abc123",
+    ///     3600,
+    ///     Some("def456"),
+    ///     scope
+    /// );
+    /// assert_eq!(bearer_token.scope(), &scope_clone);
+    /// ```
     pub fn scope(&self) -> &ScopeSet {
         &self.scope
     }
 
+    /// Determines whether the access token has expired.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// let scope = [Scope::Identity]
+    ///     .iter()
+    ///     .cloned()
+    ///     .collect::<ScopeSet>();
+    /// let bearer_token = BearerToken::new(
+    ///     "abc123",
+    ///     3600,
+    ///     None,
+    ///     scope
+    /// );
+    /// assert_eq!(bearer_token.is_expired(), false);
+    /// ```
     pub fn is_expired(&self) -> bool {
         self.created_at.elapsed().as_secs() >= (self.expires_in as u64)
     }
 
-    pub fn is_renewable(&self) -> bool {
+    /// Determines the presence of a refresh token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use snoo::auth::{BearerToken, Scope, ScopeSet};
+    /// let scope = [Scope::Identity]
+    ///     .iter()
+    ///     .cloned()
+    ///     .collect::<ScopeSet>();
+    /// let bearer_token = BearerToken::new(
+    ///     "abc123",
+    ///     3600,
+    ///     None,
+    ///     scope
+    /// );
+    /// assert_eq!(bearer_token.is_refreshable(), false);
+    /// ```
+    pub fn is_refreshable(&self) -> bool {
         self.refresh_token.is_some()
     }
 
