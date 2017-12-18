@@ -191,7 +191,16 @@ impl FromStr for Scope {
 /// }
 /// ```
 ///
-/// A `ScopeSet` with a fixed list of `Scope`s can be initialized from an array.
+/// A `ScopeSet` with a fixed list of `Scope`s can be initialized from a Vec.
+///
+/// ```
+/// use snoo::auth::{Scope, ScopeSet};
+/// let scope_set: ScopeSet = vec![Scope::Identity, Scope::Account, Scope::History]
+///     .into_iter()
+///     .collect();
+/// ```
+///
+/// A `ScopeSet` with a fixed list of `Scope`s can also be initialized from an array.
 ///
 /// ```
 /// use snoo::auth::{Scope, ScopeSet};
@@ -385,21 +394,21 @@ impl Default for ScopeSet {
     }
 }
 
-impl FromIterator<Scope> for ScopeSet {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = Scope>,
-    {
-        ScopeSet(HashSet::from_iter(iter))
-    }
-}
-
 impl IntoIterator for ScopeSet {
     type Item = Scope;
     type IntoIter = hash_set::IntoIter<Scope>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl FromIterator<Scope> for ScopeSet {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = Scope>,
+    {
+        ScopeSet(HashSet::from_iter(iter))
     }
 }
 
