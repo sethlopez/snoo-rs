@@ -1,3 +1,7 @@
+//! An unofficial wrapper for the Reddit API.
+
+#![warn(missing_docs)]
+
 extern crate failure;
 #[macro_use]
 extern crate failure_derive;
@@ -18,8 +22,8 @@ mod reddit;
 
 pub use snoo::{Snoo, SnooBuilder};
 
-/// Authorization and authentication types.
 pub mod auth {
+    //! Authorization and authentication types.
     pub use reddit::auth::{AuthorizationDuration, AuthorizationUrlBuilder,
                            AuthorizationUrlBuilderError, BearerToken, ResponseType, Scope,
                            ScopeSet, SharedBearerTokenFuture};

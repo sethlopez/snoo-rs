@@ -228,7 +228,9 @@ pub enum ResponseType {
     /// `expires_in`, and `scope` query parameters. This allows the application to request
     /// authorization from a user and receive a bearer token in a single step.
     ///
-    /// Only "installed" applications may use this response type.
+    /// Only [installed] applications may use this response type.
+    ///
+    /// [installed]: https://github.com/reddit/reddit/wiki/oauth2-app-types#installed-app
     Token,
 }
 

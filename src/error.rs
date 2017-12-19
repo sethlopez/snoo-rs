@@ -1,3 +1,5 @@
+//! Various error types that may be encountered.
+
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use failure::{Backtrace, Context, Fail};

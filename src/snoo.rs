@@ -34,6 +34,9 @@ impl Snoo {
     /// Returns a future that resolves to a [`BearerToken`].
     ///
     /// [`BearerToken`]: auth/struct.BearerToken.html
+    ///
+    /// This method should only be used to retrieve the bearer token. `Snoo` will automatically
+    /// retrieve a bearer token on its own when making requests to Reddit.
     pub fn bearer_token(&self, force: bool) -> SharedBearerTokenFuture {
         self.reddit_client.bearer_token(force)
     }

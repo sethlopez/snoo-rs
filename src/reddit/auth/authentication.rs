@@ -236,6 +236,7 @@ pub struct BearerToken {
 }
 
 impl BearerToken {
+    /// Creates a new `BearerToken`.
     pub fn new<A, R, S>(
         access_token: A,
         expires_in: usize,
@@ -260,8 +261,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
+    /// ```
+    /// # use snoo::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -282,8 +283,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
+    /// ```
+    /// # use snoo::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -304,8 +305,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
+    /// ```
+    /// # use snoo::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -326,8 +327,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
+    /// ```
+    /// # use snoo::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -349,8 +350,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
+    /// ```
+    /// # use snoo::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -371,8 +372,8 @@ impl BearerToken {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// # use snoo::reddit::auth::{BearerToken, Scope, ScopeSet};
+    /// ```
+    /// # use snoo::auth::{BearerToken, Scope, ScopeSet};
     /// let scope = [Scope::Identity]
     ///     .iter()
     ///     .cloned()
@@ -394,9 +395,12 @@ impl BearerToken {
     }
 }
 
+/// A shared future that resolves to a [`BearerToken`].
+///
+/// [`BearerToken`]: struct.BearerToken.html
+#[must_use = "futures do nothing unless polled"]
 pub type SharedBearerTokenFuture = Shared<BearerTokenFuture>;
 
-// TODO: Document BearerTokenFuture
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub enum BearerTokenFuture {
@@ -410,7 +414,7 @@ pub enum BearerTokenFuture {
 }
 
 impl BearerTokenFuture {
-    pub(crate) fn new(
+    pub fn new(
         http_client: &HttpClient,
         auth_flow: &AuthFlow,
         app_secrets: &AppSecrets,
